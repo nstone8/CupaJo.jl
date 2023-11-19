@@ -143,30 +143,35 @@ be replaced with values corresponding to the `originquantile` for plotting.
 """
 function flowdensity end
 
-@userplot FlowDensity
-@recipe function f(fd::FlowDensity)
+#helper function for scrooching up values in flowdensity plots
+
+scroochvals(ox,oy,originquantile) = map((ox,oy)) do a
+    #if all values are > 0, don't need to edit
+    if all(a .> 0)
+        return a
+    end
+    #else we have to scrooch the small values up
+    apos=filter(a) do ai
+        ai > 0
+    end
+    aorigin=quantile(apos,originquantile)
+    map(a) do ai
+        (ai < aorigin) ? aorigin : ai
+    end
+end
+
+@shorthands flowdensity
+@recipe function f(::Type{Val{:flowdensity}}, ox, oy, z)
     xscale --> :log10
     yscale --> :log10
     originquantile --> .01
     seriestype := :pointdensity
-    (ox,oy) = fd.args
-
-    #if all values are greater than zero, no editing needed
-    if all(ox .> 0) && all(oy .> 0)
-        return (ox,oy)
-    end
     
     #move very small values to the origin quantile for that axis
-    (newx,newy) = map((ox,oy)) do a
-        apos=filter(a) do ai
-            ai > 0
-        end
-        aorigin=quantile(apos,plotattributes[:originquantile])
-        map(a) do ai
-            (ai < aorigin) ? aorigin : ai
-        end
-    end
-    (newx,newy)
+    (newx,newy) = scroochvals(ox,oy,plotattributes[:originquantile])
+    x := newx
+    y := newy
+    ()
 end
 
 #build a plot recipe for Jo structs
@@ -183,10 +188,11 @@ end
     legend --> false
     for cc in chancombos
         @series begin
+            seriestype := :flowdensity
             xguide := cc[1]
             yguide := cc[2]
             subplot := plotnum
-            FlowDensity((getchannel(j,cc[1]),getchannel(j,cc[2])))
+            (getchannel(j,cc[1]),getchannel(j,cc[2]))
         end
 
         @series begin
