@@ -1,7 +1,7 @@
 name = "CupaJo"
 uuid = "9995961a-b609-4a7c-a027-532616047065"
 authors = ["Nicholas Stone <nicholasestone@proton.me>"]
-version = "0.1.1"
+version = "0.1.2"
 
 [deps]
 FCSFiles = "d76558cf-badf-52d4-a17e-381ab0b0d937"

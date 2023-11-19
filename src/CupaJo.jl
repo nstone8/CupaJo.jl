@@ -144,9 +144,10 @@ be replaced with values corresponding to the `originquantile` for plotting.
 function flowdensity end
 
 @userplot FlowDensity
-@recipe function f(fd::FlowDensity;originquantile=.01)
+@recipe function f(fd::FlowDensity)
     xscale --> :log10
     yscale --> :log10
+    originquantile --> .01
     seriestype := :pointdensity
     (ox,oy) = fd.args
 
@@ -160,7 +161,7 @@ function flowdensity end
         apos=filter(a) do ai
             ai > 0
         end
-        aorigin=quantile(apos,originquantile)
+        aorigin=quantile(apos,plotattributes[:originquantile])
         map(a) do ai
             (ai < aorigin) ? aorigin : ai
         end
