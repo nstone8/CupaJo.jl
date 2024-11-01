@@ -1,6 +1,6 @@
 module CupaJo
 
-using FCSFiles, Statistics, PointDensityPlots, RecipesBase
+using FCSFiles, Statistics, PointDensityPlots, RecipesBase, Logicle
 import Tables
 
 export Jo, gates, setgate, cleargate, getchannel
@@ -143,35 +143,12 @@ be replaced with values corresponding to the `originquantile` for plotting.
 """
 function flowdensity end
 
-#helper function for scrooching up values in flowdensity plots
-
-scroochvals(ox,oy,originquantile) = map((ox,oy)) do a
-    #if all values are > 0, don't need to edit
-    if all(a .> 0)
-        return a
-    end
-    #else we have to scrooch the small values up
-    apos=filter(a) do ai
-        ai > 0
-    end
-    aorigin=quantile(apos,originquantile)
-    map(a) do ai
-        (ai < aorigin) ? aorigin : ai
-    end
-end
-
 @shorthands flowdensity
 @recipe function f(::Type{Val{:flowdensity}}, ox, oy, z)
-    xscale --> :log10
-    yscale --> :log10
-    originquantile --> .01
     seriestype := :pointdensity
-    
-    #move very small values to the origin quantile for that axis
-    (newx,newy) = scroochvals(ox,oy,plotattributes[:originquantile])
-    x := newx
-    y := newy
-    ()
+    xscale --> :logicle
+    yscale --> :logicle
+    (ox,oy,z)
 end
 
 #build a plot recipe for Jo structs
@@ -186,9 +163,23 @@ end
     layout := @layout [RecipesBase.grid(length(chancombos),1) RecipesBase.grid(nchans,1)]
     plotnum=1
     legend --> false
+    #we need to scale our gates like our points
+    logiclescales=Dict()
     for cc in chancombos
         @series begin
             seriestype := :flowdensity
+            xscale --> :logicle
+            yscale --> :logicle
+            if plotattributes[:xscale] == :logicle
+                xl = LogicleScale(getchannel(j,cc[1]))
+                logiclescales[cc[1]] = xl
+                logiclescalex := xl
+            end
+            if plotattributes[:yscale] == :logicle
+                yl = LogicleScale(getchannel(j,cc[2]))
+                logiclescales[cc[2]] = yl
+                logiclescaley := yl
+            end
             xguide := cc[1]
             yguide := cc[2]
             subplot := plotnum
@@ -201,7 +192,7 @@ end
             yguide := cc[2]
             seriestype := :vline
             linecolor --> :black
-            gates(j)[cc[1]]
+            logiclescales[cc[1]].(gates(j)[cc[1]])
         end
 
         @series begin
@@ -210,7 +201,7 @@ end
             yguide := cc[2]
             seriestype := :hline
             linecolor --> :black
-            gates(j)[cc[2]]
+            logiclescales[cc[2]].(gates(j)[cc[2]])
         end
         
         plotnum += 1
